@@ -1,0 +1,36 @@
+name: APK
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Le site GitHub ne garde pas les dossiers à l'envoi : le projet est envoyé en projet.zip et décompressé ici.
+      - name: Décompresser projet.zip
+        run: |
+          if [ -f projet.zip ]; then
+            mkdir -p /tmp/src && unzip -q -o projet.zip -d /tmp/src
+            d=$(dirname "$(find /tmp/src -name settings.gradle | head -1)")
+            cp -r "$d"/. .
+          fi
+          find app -type f
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+      - run: gradle --no-daemon :app:assembleRelease
+      - run: cp app/build/outputs/apk/release/app-release.apk iptv-maison.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}
+          name: IPTV Maison ${{ github.run_number }}
+          files: iptv-maison.apk
+          make_latest: true
